@@ -1,0 +1,126 @@
+ldap {
+  server= 'ldaps://mare-nostrum.mylocal'
+  port = 636
+  base_dn = 'ou=Logistica,dc=mare-nostrum,dc=mylocal'
+  identity = 'cn=admin,dc=mare-nostrum,dc=mylocal'
+  password = '12345'
+
+  sasl {
+  }
+  update {
+      control:Password-With-Header    += 'userPassword'
+      control:NT-Password             := 'sambaNTPassword'
+      control:LM-Password	      := 'sambaLMPassword'
+      control:            += 'radiusControlAttribute'
+      request:            += 'radiusRequestAttribute'
+      reply:              += 'radiusReplyAttribute'
+  }
+  user {
+      base_dn = "ou=Logistica,dc=mare-nostrum,dc=mylocal"
+      filter = "(uid=%{%{Stripped-User-Name}:-%{User-Name}})"
+      sasl {
+      }
+  }
+  group {
+      base_dn = "ou=grupos,ou=Logistica,dc=mare-nostrum,dc=mylocal"
+      filter = '(objectClass=GroupOfNames)'
+      membership_filter = "(|(&(objectClass=GroupOfNames)(member=%{control:Ldap-UserDn}))(&(objectClass=GroupOfNames)(member=%{control:Ldap-UserDn})))"
+      membership_attribute = 'memberOf'
+  }
+  profile {
+  }
+  client {
+      base_dn = "${..base_dn}"
+      filter = '(objectClass=radiusClient)'
+      template {
+      }
+      attribute {
+          ipaddr              = 'radiusClientIdentifier'
+          secret              = 'radiusClientSecret'
+      }
+  }
+  accounting {
+      reference = "%{tolower:type.%{Acct-Status-Type}}"
+      type {
+          start {
+              update {
+                  description := "Online at %S"
+              }
+          }
+          interim-update {
+              update {
+                  description := "Last seen at %S"
+              }
+          }
+          stop {
+              update {
+                  description := "Offline at %S"
+              }
+          }
+      }
+  }
+  post-auth {
+      update {
+          description := "Authenticated at %S"
+      }
+  }
+  options {
+      chase_referrals = yes
+      rebind = yes
+      res_timeout = 10
+      srv_timelimit = 3
+      net_timeout = 1
+      idle = 60
+      probes = 3
+      interval = 3
+      ldap_debug = 0x0028
+  }
+  pool {
+      start = ${thread[pool].start_servers}
+      min = ${thread[pool].min_spare_servers}
+      max = ${thread[pool].max_servers}
+      spare = ${thread[pool].max_spare_servers}
+      uses = 0
+      retry_delay = 30
+      lifetime = 0
+      idle_timeout = 60
+  }
+  tls {
+                # Set this to 'yes' to use TLS encrypted connections
+                # to the LDAP database by using the StartTLS extended
+                # operation.
+                #
+                # The StartTLS operation is supposed to be
+                # used with normal ldap connections instead of
+                # using ldaps (port 636) connections
+                start_tls = no
+
+                ca_file = /etc/freeradius/3.0/certs/ca.crt
+
+#               ca_path = ${certdir}
+                certificate_file = /etc/freeradius/3.0/certs/res-freeradius.mylocal.crt
+                private_key_file = /etc/freeradius/3.0/certs/res-freeradius.mylocal.key
+#               random_file = /dev/urandom
+
+                #  Certificate Verification requirements.  Can be:
+                #    'never' (do not even bother trying)
+                #    'allow' (try, but don't fail if the certificate
+                #               cannot be verified)
+                #    'demand' (fail if the certificate does not verify)
+                #    'hard'  (similar to 'demand' but fails if TLS
+                #             cannot negotiate)
+                #
+                #  The default is libldap's default, which varies based
+                #  on the contents of ldap.conf.
+
+               require_cert    = 'demand'
+
+                #
+                #  Minimum TLS version to accept. We STRONGLY recommend
+                #  setting this to "1.2"
+                #
+#               tls_min_version = "1.2"
+        }
+
+} 
+
